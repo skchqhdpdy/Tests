@@ -1,0 +1,33 @@
+{
+  "name": "Private Server --> Bancho Link",
+  "description": "오스 사설서버들의 비트맵 페이지를 감지하면 반초 페이지를 추가로 열어줌",
+  "version": "1.0",
+  "manifest_version": 3,
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "js": ["scripts/content.js"],
+      "matches": [
+        "https://ripple.moe/b/*",
+        "https://ussr.pl/beatmaps/*",
+        "https://akatsuki.gg/b/*"
+      ],
+      "all_frames": true
+    }
+  ],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "icons": {
+    "16": "/images/icon-16.png",
+    "32": "/images/icon-32.png",
+    "48": "/images/icon-48.png",
+    "64": "/images/icon-64.png",
+    "128": "/images/icon-128.png"
+  }
+}
