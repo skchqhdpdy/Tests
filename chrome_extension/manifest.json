@@ -10,9 +10,11 @@
     {
       "js": ["scripts/content.js"],
       "matches": [
+        "https://debian.moe/b/*",
         "https://ripple.moe/b/*",
         "https://ussr.pl/beatmaps/*",
-        "https://akatsuki.gg/b/*"
+        "https://akatsuki.gg/b/*",
+        "https://osu.gatari.pw/b/*"
       ],
       "all_frames": true
     }
