@@ -1,20 +1,13 @@
 import requests
 import os
 
-url = "https://www.sslshopper.com/assets/snippets/sslshopper/ajax/ajax_convert.php"
 file_list = next((file for file in os.listdir(".") if file.endswith(".pfx")))
-
+url = "https://www.sslshopper.com/assets/snippets/sslshopper/ajax/ajax_convert.php"
 files = {'certFile': (file_list, open(file_list, 'rb'))}
-data = {'certTypeFrom': 'pfx', 'certTypeTo': 'pem'}
+body = {'certTypeFrom': 'pfx', 'certTypeTo': 'pem'}
 
-with open("ssl.pem", "wb") as f: f.write(requests.post(url, files=files, data=data).content)
-
-with open("ssl.pem", "r") as s:
-    s = s.read()
-    key = s[s.find("-----BEGIN PRIVATE KEY-----"):s.find("-----END PRIVATE KEY-----")+len("-----END PRIVATE KEY-----")]
-    with open("cert.key", "w") as f: f.write(key)
-
-    cert = s[s.find("-----BEGIN CERTIFICATE-----"):].rstrip("\n")
-    with open("cert.crt", "w") as f: f.write(cert)
-
-os.remove("ssl.pem")   
+s = requests.post(url, files=files, data=body, headers={"User-Agent": "pfx2crt.py"}).content
+cert = s[s.find(b"-----BEGIN CERTIFICATE-----"):]
+key = s[s.find(b"-----BEGIN PRIVATE KEY-----"):s.find(b"-----END PRIVATE KEY-----")+len(b"-----END PRIVATE KEY-----")]
+with open("cert.crt", "wb") as f: f.write(cert.rstrip(b"\n"))
+with open("cert.key", "wb") as f: f.write(key)
