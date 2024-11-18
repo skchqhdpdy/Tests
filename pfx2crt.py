@@ -24,4 +24,5 @@ if changeRDPSSL:
     sha1 = os.popen('powershell -Command "Get-ChildItem -Path Cert:\\LocalMachine\\My | Where-Object { $_.Subject -match \\"redstar.moe\\" } | Select-Object -ExpandProperty Thumbprint"').read().strip()
     print(sha1)
     #os.system(f'reg add "HKLM\Software\Microsoft\Terminal Server Client" /v "ServerAuthentication" /t REG_SZ /d "{sha1}" /f')
-    os.system(f'reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v "SSLCertificateSHA1Hash" /t REG_BINARY /d "{sha1}" /f')
+    #os.system(f'reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v "SSLCertificateSHA1Hash" /t REG_BINARY /d "{sha1}" /f')
+    os.system(f'wmic /namespace:\\\\root\\cimv2\\TerminalServices PATH Win32_TSGeneralSetting Set SSLCertificateSHA1Hash="{sha1}"')
