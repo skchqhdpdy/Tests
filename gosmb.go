@@ -12,23 +12,25 @@ import (
 	"time"
 )
 
-const remoteAddr = "aodd.xyz:7445"        //원격 서버 주소 및 포트
-const localAddr = ":445"                  //로컬 포트
-const configFilePath = "configGosmb.json" //설정 파일 경로
+const localPort = ":445"                  //로컬 포트
+const configFilePath = "configGosmb.json" // 설정 파일 경로
 
 // 설정 구조체
 type Config struct {
 	DiscordWebhookURL string `json:"discordWebhookURL"`
+	RemoteAddr        string `json:"remoteAddr"`
+	LocalAddr         string `json:"localAddr"`
 }
 
 // 기본값
 var defaultConfig = Config{
-	DiscordWebhookURL: "https://discord.com/api/webhooks/your-webhook-url",
+	DiscordWebhookURL: "your_webhook_url",
+	RemoteAddr:        "aodd.xyz:7445",
+	LocalAddr:         "ns2.aodd.xyz",
 }
 
 func sendToDiscord(message string) {
-	config := loadConfig() //Discord 웹훅 URL을 설정 파일에서 읽어옴
-	// Discord 웹훅으로 메시지 전송
+	config := loadConfig()
 	payload := map[string]string{"content": message}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -43,9 +45,7 @@ func sendToDiscord(message string) {
 }
 
 func loadConfig() Config {
-	// 설정 파일이 있으면 읽고, 없으면 기본값으로 생성
 	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
-		// 설정 파일이 없으면 기본값으로 설정 파일 생성
 		log.Printf("설정 파일 없음. 기본 설정 파일을 생성합니다: %s", configFilePath)
 		file, err := os.Create(configFilePath)
 		if err != nil {
@@ -61,7 +61,7 @@ func loadConfig() Config {
 		return defaultConfig
 	}
 
-	file, err := os.Open(configFilePath) //설정 파일 읽기
+	file, err := os.Open(configFilePath)
 	if err != nil {
 		log.Fatalf("설정 파일 열기 실패: %v", err)
 	}
@@ -75,37 +75,35 @@ func loadConfig() Config {
 	return config
 }
 
-func handleConnection(localConn net.Conn) {
+func handleConnection(localConn net.Conn, config Config) {
 	defer localConn.Close()
 
-	// 원격 서버에 연결
-	remoteConn, err := net.Dial("tcp", remoteAddr)
+	remoteConn, err := net.Dial("tcp", config.RemoteAddr)
 	if err != nil {
 		log.Printf("원격 서버 연결 실패: %v", err)
 		return
 	}
 	defer remoteConn.Close()
 
-	log.Printf("연결됨: %s -> %s", localConn.RemoteAddr(), remoteAddr)
-	sendToDiscord(fmt.Sprintf("연결됨: %s -> %s | <t:%d:F>", localConn.RemoteAddr(), remoteAddr, time.Now().Unix()))
+	log.Printf("연결됨: %s -> %s -> %s", localConn.RemoteAddr(), config.LocalAddr+localPort, config.RemoteAddr)
+	sendToDiscord(fmt.Sprintf("연결됨: %s -> %s -> %s | <t:%d:F>", localConn.RemoteAddr(), config.LocalAddr+localPort, config.RemoteAddr, time.Now().Unix()))
 
-	// 데이터를 양방향으로 복사 (로컬 <-> 원격)
 	go io.Copy(remoteConn, localConn)
 	io.Copy(localConn, remoteConn)
 }
 
 func main() {
-	loadConfig()
+	config := loadConfig()
 
-	listener, err := net.Listen("tcp", localAddr)
+	listener, err := net.Listen("tcp", localPort)
 	if err != nil {
-		log.Fatalf("포트 %s에서 리스닝 실패: %v", localAddr, err)
+		log.Fatalf("포트 %s에서 리스닝 실패: %v", localPort, err)
 		pauseConsole()
 		return
 	}
 	defer listener.Close()
 
-	log.Printf("포트 포워딩 시작: %s -> %s", localAddr, remoteAddr)
+	log.Printf("포트 포워딩 시작: %s -> %s", localPort, config.RemoteAddr)
 
 	for {
 		conn, err := listener.Accept()
@@ -113,12 +111,11 @@ func main() {
 			log.Printf("연결 수락 실패: %v", err)
 			continue
 		}
-		go handleConnection(conn)
+		go handleConnection(conn, config)
 	}
 }
 
 func pauseConsole() {
-	// fmt.Scanln()을 사용하여 Enter를 눌러 종료
 	fmt.Println("Press Enter to exit...")
 	fmt.Scanln()
 }
