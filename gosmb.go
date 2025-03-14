@@ -103,7 +103,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	log.Printf("포트 포워딩 시작: %s -> %s", localPort, config.RemoteAddr)
+	log.Printf("포트 포워딩 시작: %s -> %s", config.LocalAddr+localPort, config.RemoteAddr)
 
 	for {
 		conn, err := listener.Accept()
