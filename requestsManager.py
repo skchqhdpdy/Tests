@@ -1,4 +1,4 @@
-from multiprocessing.pool import ThreadPool
+from concurrent.futures import ThreadPoolExecutor
 import sys
 import traceback
 
@@ -6,31 +6,28 @@ import tornado
 import tornado.web
 import tornado.gen
 from tornado.ioloop import IOLoop
-from raven.contrib.tornado import SentryMixin
+import asyncio
 
-pool = ThreadPool(4)
+pool = ThreadPoolExecutor(max_workers=4)
 
-class asyncRequestHandler(SentryMixin, tornado.web.RequestHandler):
+class asyncRequestHandler(tornado.web.RequestHandler):
 	"""
+	Modern Tornado asynchronous request handler (Python 3.12+)
 	Tornado asynchronous request handler
 	create a class that extends this one (requestHelper.asyncRequestHandler)
 	use asyncGet() and asyncPost() instead of get() and post().
 	Done. I'm not kidding.
 	"""
-	@tornado.web.asynchronous
-	@tornado.gen.engine
-	def get(self, *args, **kwargs):
+	async def get(self, *args, **kwargs):
 		try:
-			yield tornado.gen.Task(runBackground, (self.asyncGet, tuple(args), dict(kwargs)))
+			await run_background(self.asyncGet, *args, **kwargs)
 		finally:
 			if not self._finished:
 				self.finish()
 
-	@tornado.web.asynchronous
-	@tornado.gen.engine
-	def post(self, *args, **kwargs):
+	async def post(self, *args, **kwargs):
 		try:
-			yield tornado.gen.Task(runBackground, (self.asyncPost, tuple(args), dict(kwargs)))
+			await run_background(self.asyncPost, *args, **kwargs)
 		finally:
 			if not self._finished:
 				self.finish()
@@ -49,17 +46,15 @@ class asyncRequestHandler(SentryMixin, tornado.web.RequestHandler):
 
 		:return: Client IP address
 		"""
-		if "X-Real-IP" in self.request.headers:
-			return self.request.headers.get("X-Real-IP")
-		if "CF-Connecting-IP" in self.request.headers:
-			return self.request.headers.get("CF-Connecting-IP")
-		elif "X-Forwarded-For" in self.request.headers:
-			return self.request.headers.get("X-Forwarded-For")
-		else:
-			return self.request.remote_ip
+		headers = self.request.headers
+		return (
+			headers.get("X-Real-IP")
+			or headers.get("CF-Connecting-IP")
+			or headers.get("X-Forwarded-For")
+			or self.request.remote_ip
+		)
 
-
-def runBackground(data, callback):
+async def run_background(func, *args, **kwargs):
 	"""
 	Run a function in the background.
 	Used to handle multiple requests at the same time
@@ -68,10 +63,8 @@ def runBackground(data, callback):
 	:param callback: function to call when `func` (data[0]) returns
 	:return:
 	"""
-	func, args, kwargs = data
-	def _callback(result):
-		IOLoop.instance().add_callback(lambda: callback(result))
-	pool.apply_async(func, args, kwargs, _callback)
+	loop = asyncio.get_running_loop()
+	return await loop.run_in_executor(pool, lambda: func(*args, **kwargs))
 
 def checkArguments(arguments, requiredArguments):
 	"""
