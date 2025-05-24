@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +16,6 @@ import (
 var configFilePath string // OS에 따라 동적으로 설정
 
 type Config struct {
-	DiscordWebhookURL string `json:"discordWebhookURL"`
 	LocalAddr         string `json:"localAddr"`
 	LocalPort         string `json:"localPort"`
 	RemoteAddr        string `json:"remoteAddr"`
@@ -26,11 +23,10 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	DiscordWebhookURL: "your_webhook_url",
 	LocalAddr:         "127.0.0.1",
 	LocalPort:         "6969",
 	RemoteAddr:        "spt-eft.aodd.xyz",
-	RemotePort:        "7412",
+	RemotePort:        "6969",
 }
 
 func init() {
@@ -48,7 +44,7 @@ func main() {
 	ensureRoot()
 	config := loadConfig()
 
-	listener, err := net.Listen("tcp", ":"+config.LocalPort)
+	listener, err := net.Listen("tcp", config.LocalAddr+":"+config.LocalPort)
 	if err != nil {
 		log.Printf("포트 %s에서 리스닝 실패: %v", config.LocalPort, err)
 		pauseConsole()
@@ -78,26 +74,10 @@ func handleConnection(localConn net.Conn, config Config) {
 	}
 	defer remoteConn.Close()
 
-	log.Printf("연결됨: %s -> %s -> %s", localConn.RemoteAddr(), config.LocalAddr+":"+config.LocalPort, config.RemoteAddr+":"+config.RemotePort)
-	sendToDiscord(fmt.Sprintf("연결됨: %s -> %s -> %s | <t:%d:F>", localConn.RemoteAddr(), config.LocalAddr+":"+config.LocalPort, config.RemoteAddr+":"+config.RemotePort, time.Now().Unix()))
+	log.Printf("연결됨: %s -> %s -> %s | %d", localConn.RemoteAddr(), config.LocalAddr+":"+config.LocalPort, config.RemoteAddr+":"+config.RemotePort, time.Now().Unix())
 
 	go io.Copy(remoteConn, localConn)
 	io.Copy(localConn, remoteConn)
-}
-
-func sendToDiscord(message string) {
-	config := loadConfig()
-	payload := map[string]string{"content": message}
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		log.Printf("Discord 메시지 전송 실패: %v", err)
-		return
-	}
-
-	_, err = http.Post(config.DiscordWebhookURL, "application/json", bytes.NewReader(payloadBytes))
-	if err != nil {
-		log.Printf("Discord 웹훅 요청 실패: %v", err)
-	}
 }
 
 func ensureRoot() {
@@ -143,9 +123,9 @@ func loadConfig() Config {
 
 func getConfigPath() string {
 	if runtime.GOOS == "windows" {
-		return `C:\spt\configSPT.json`
+		return `C:\gospt\configSPT.json`
 	}
-	return "/etc/spt/configSPT.json"
+	return "/etc/gospt/configSPT.json"
 }
 
 func ensureConfigDir() {
